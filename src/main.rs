@@ -1,5 +1,6 @@
 use std::io::{stdout, Result};
 
+use chords::Chords;
 use crossterm::{
     event::{
         read, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyModifiers,
@@ -14,18 +15,38 @@ use tui::{
     Terminal,
 };
 
+mod chords;
+
 fn main() -> Result<()> {
-    // setup terminal
     enable_raw_mode()?;
     let mut stdout = stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
+    let chords_path = "chords.txt";
+    let chords = Chords::read_from_file(chords_path)?;
+
+    if let Err(error) = run_event_loop(&mut terminal) {
+        eprintln!("Error when running main loop: {error}");
+    }
+
+    chords.write_to_file(chords_path)?;
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+
+    Ok(())
+}
+
+fn run_event_loop<B: Backend>(terminal: &mut Terminal<B>) -> Result<()> {
     let mut search_field = String::new();
 
     loop {
-        draw_tui(&mut terminal, &search_field)?;
+        draw_tui(terminal, &search_field)?;
 
         let event = read()?;
         if let Event::Key(key) = event {
@@ -34,14 +55,6 @@ fn main() -> Result<()> {
             }
         }
     }
-
-    // restore terminal
-    disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
 
     Ok(())
 }
