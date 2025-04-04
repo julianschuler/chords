@@ -16,7 +16,7 @@ fn main() -> Result<()> {
     let chords = Chords::read_from_file(CHORDS_PATH)?;
     let words = Words::read_from_file_and_chords(WORDS_PATH, &chords)?;
 
-    if let Err(error) = tui.run_event_loop() {
+    if let Err(error) = tui.run_event_loop(words) {
         eprintln!("Error when running event loop: {error}");
     }
 
