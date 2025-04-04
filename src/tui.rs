@@ -2,7 +2,8 @@ use std::io::{stdout, Result, Stdout};
 
 use crossterm::{
     event::{
-        read, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyModifiers,
+        read, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
+        KeyModifiers,
     },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -11,7 +12,7 @@ use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Layout},
     style::{Style, Stylize},
-    text::{Span, Text, ToText},
+    text::{Span, Text},
     widgets::{Block, Paragraph, Row, Table, TableState},
     Terminal,
 };
@@ -20,12 +21,14 @@ use crate::words::Words;
 
 pub struct Tui {
     terminal: Terminal<CrosstermBackend<Stdout>>,
-    search_field: String,
+    words: Words,
+    rows: Vec<[String; 3]>,
+    search: String,
     table_state: TableState,
 }
 
 impl Tui {
-    pub fn new() -> Result<Self> {
+    pub fn new(words: Words) -> Result<Self> {
         enable_raw_mode()?;
 
         let mut stdout = stdout();
@@ -36,7 +39,9 @@ impl Tui {
 
         Ok(Self {
             terminal,
-            search_field: String::new(),
+            words,
+            rows: Vec::new(),
+            search: String::new(),
             table_state: TableState::new(),
         })
     }
@@ -52,9 +57,11 @@ impl Tui {
         Ok(())
     }
 
-    pub fn run_event_loop(&mut self, words: Words) -> Result<()> {
+    pub fn run_event_loop(&mut self) -> Result<()> {
+        self.update_rows();
+
         loop {
-            self.draw(&words)?;
+            self.draw()?;
 
             let event = read()?;
             if let Event::Key(key) = event {
@@ -67,12 +74,12 @@ impl Tui {
         Ok(())
     }
 
-    pub fn draw(&mut self, words: &Words) -> Result<()> {
+    pub fn draw(&mut self) -> Result<()> {
         self.terminal.draw(|frame| {
             let layout =
                 Layout::vertical([Constraint::Length(3), Constraint::Min(0)]).split(frame.area());
 
-            let text = Text::from(self.search_field.as_str());
+            let text = Text::from(self.search.as_str());
             let block =
                 Block::bordered().title(Span::from("Search chords").style(Style::new().bold()));
             let paragraph = Paragraph::new(text).block(block);
@@ -83,36 +90,28 @@ impl Tui {
                 Constraint::Ratio(1, 3),
                 Constraint::Ratio(1, 3),
             ];
-            let rows = words.iter().map(|(word, entry)| {
-                let word = word.to_text();
-                let rank = entry
-                    .rank
-                    .as_ref()
-                    .map_or(Text::default(), |rank| rank.to_text());
-                let chord = entry
-                    .chord
-                    .as_ref()
-                    .map_or(Text::default(), |chord| chord.to_text());
-
-                Row::new(vec![rank, word, chord])
-            });
             let header = Row::new(vec!["Rank", "Word", "Chord"]).style(Style::new().bold());
             let block = Block::bordered();
-            let table = Table::new(rows, widths)
-                .block(block)
-                .header(header)
-                .row_highlight_style(Style::new().reversed());
+            let table = Table::new(
+                self.rows
+                    .iter()
+                    .map(|row| Row::new(row.iter().map(String::as_str))),
+                widths,
+            )
+            .block(block)
+            .header(header)
+            .row_highlight_style(Style::new().reversed());
             frame.render_stateful_widget(table, layout[1], &mut self.table_state);
         })?;
 
-        let x: u16 = self.search_field.len().try_into().unwrap_or(u16::MAX - 1);
+        let x: u16 = self.search.len().try_into().unwrap_or(u16::MAX - 1);
         self.terminal.set_cursor_position((x + 1, 1))?;
         self.terminal.show_cursor()?;
 
         Ok(())
     }
 
-    pub fn handle_key(&mut self, key: KeyEvent) -> bool {
+    fn handle_key(&mut self, key: KeyEvent) -> bool {
         if key.kind != KeyEventKind::Press {
             return false;
         }
@@ -127,16 +126,19 @@ impl Tui {
                         }
                         KeyCode::Char('h') => {
                             // ctrl-backspace
-                            self.search_field.clear();
+                            self.search.clear();
+                            self.update_rows();
                         }
                         _ => {}
                     }
                 } else {
-                    self.search_field.push(char);
+                    self.search.push(char);
+                    self.update_rows();
                 }
             }
             KeyCode::Backspace => {
-                self.search_field.pop();
+                self.search.pop();
+                self.update_rows();
             }
             KeyCode::Up => self.select_previous_row(),
             KeyCode::Down => self.select_next_row(),
@@ -146,7 +148,31 @@ impl Tui {
         false
     }
 
-    pub fn select_previous_row(&mut self) {
+    fn update_rows(&mut self) {
+        self.rows = self
+            .words
+            .iter()
+            .filter_map(|(word, entry)| {
+                if !word.contains(&self.search) {
+                    return None;
+                }
+
+                let word = word.to_owned();
+                let rank = entry
+                    .rank
+                    .as_ref()
+                    .map_or(String::new(), |rank| rank.to_string());
+                let chord = entry
+                    .chord
+                    .as_ref()
+                    .map_or(String::default(), |chord| chord.to_string());
+
+                Some([rank, word, chord])
+            })
+            .collect();
+    }
+
+    fn select_previous_row(&mut self) {
         let row = self
             .table_state
             .selected()
@@ -154,7 +180,7 @@ impl Tui {
         self.table_state.select(row);
     }
 
-    pub fn select_next_row(&mut self) {
+    fn select_next_row(&mut self) {
         let row = self
             .table_state
             .selected()
