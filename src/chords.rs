@@ -1,14 +1,15 @@
 use std::{
     char::ParseCharError,
     collections::{BTreeMap, BTreeSet},
-    fmt::{self, Display, Formatter},
+    fmt::{Display, Formatter, Result as FmtResult},
     fs::{read_to_string, File},
-    io::{self, Write},
+    io::{Result as IoResult, Write},
+    ops::Deref,
     path::Path,
     str::FromStr,
 };
 
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Chord(BTreeSet<char>);
 
 impl FromStr for Chord {
@@ -26,7 +27,7 @@ impl FromStr for Chord {
 }
 
 impl Display for Chord {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         let chars: Vec<_> = self.0.iter().map(ToString::to_string).collect();
 
         write!(f, "{}", chars.join("+"))
@@ -36,7 +37,7 @@ impl Display for Chord {
 pub struct Chords(BTreeMap<Chord, String>);
 
 impl Chords {
-    pub fn read_from_file(path: impl AsRef<Path>) -> io::Result<Self> {
+    pub fn read_from_file(path: impl AsRef<Path>) -> IoResult<Self> {
         let lines = read_to_string(path)?;
 
         let chords = lines
@@ -54,7 +55,7 @@ impl Chords {
         Ok(Self(chords))
     }
 
-    pub fn write_to_file(&self, path: impl AsRef<Path>) -> io::Result<()> {
+    pub fn write_to_file(&self, path: impl AsRef<Path>) -> IoResult<()> {
         let lines: Vec<_> = self
             .0
             .iter()
@@ -62,5 +63,13 @@ impl Chords {
             .collect();
 
         File::create(path)?.write_all(lines.concat().as_bytes())
+    }
+}
+
+impl Deref for Chords {
+    type Target = BTreeMap<Chord, String>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
