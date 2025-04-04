@@ -113,6 +113,10 @@ impl Tui {
     }
 
     pub fn handle_key(&mut self, key: KeyEvent) -> bool {
+        if key.kind != KeyEventKind::Press {
+            return false;
+        }
+
         match key.code {
             KeyCode::Char(char) => {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
