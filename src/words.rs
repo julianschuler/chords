@@ -1,6 +1,6 @@
-use std::{fs::read_to_string, io::Result, num::NonZeroUsize, ops::Deref, path::Path};
+use std::{fs::read_to_string, io::Result, num::NonZeroUsize, path::Path};
 
-use indexmap::IndexMap;
+use indexmap::{map::Iter, IndexMap};
 
 use crate::chords::{Chord, Chords};
 
@@ -31,17 +31,13 @@ impl Words {
             .collect();
 
         for (chord, word) in chords.iter() {
-            entries.entry(word.clone()).or_default().chord = Some(chord.clone());
+            entries.entry(word).or_default().chord = Some(chord);
         }
 
         Ok(Self(entries))
     }
-}
 
-impl Deref for Words {
-    type Target = IndexMap<String, Entry>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+    pub fn iter(&self) -> Iter<String, Entry> {
+        self.0.iter()
     }
 }

@@ -1,10 +1,9 @@
 use std::{
     char::ParseCharError,
-    collections::{BTreeMap, BTreeSet},
+    collections::{btree_map::IntoIter, BTreeMap, BTreeSet},
     fmt::{Display, Formatter, Result as FmtResult},
     fs::{read_to_string, File},
     io::{Result as IoResult, Write},
-    ops::Deref,
     path::Path,
     str::FromStr,
 };
@@ -64,12 +63,8 @@ impl Chords {
 
         File::create(path)?.write_all(lines.concat().as_bytes())
     }
-}
 
-impl Deref for Chords {
-    type Target = BTreeMap<Chord, String>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+    pub fn iter(&self) -> IntoIter<Chord, String> {
+        self.0.clone().into_iter()
     }
 }
