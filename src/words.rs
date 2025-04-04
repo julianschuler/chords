@@ -7,7 +7,7 @@ use crate::chords::{Chord, Chords};
 #[derive(Default)]
 pub struct Entry {
     pub rank: Option<NonZeroUsize>,
-    pub chord: Option<Chord>,
+    pub chord: Chord,
 }
 
 pub struct Words(IndexMap<String, Entry>);
@@ -24,14 +24,14 @@ impl Words {
                     word.to_owned(),
                     Entry {
                         rank: Some(NonZeroUsize::new(i + 1).unwrap()),
-                        chord: None,
+                        chord: Chord::default(),
                     },
                 )
             })
             .collect();
 
         for (chord, word) in chords.iter() {
-            entries.entry(word).or_default().chord = Some(chord);
+            entries.entry(word).or_default().chord = chord;
         }
 
         Ok(Self(entries))

@@ -13,16 +13,16 @@ use ratatui::{
     layout::{Constraint, Layout},
     style::{Style, Stylize},
     text::{Span, Text},
-    widgets::{Block, Paragraph, Row, Table, TableState},
+    widgets::{Block, Paragraph, Row as TableRow, Table, TableState},
     Terminal,
 };
 
-use crate::words::Words;
+use crate::{chords::Chord, words::Words};
 
 pub struct Tui {
     terminal: Terminal<CrosstermBackend<Stdout>>,
     words: Words,
-    rows: Vec<[String; 3]>,
+    rows: Vec<Row>,
     search: String,
     table_state: TableState,
 }
@@ -90,17 +90,12 @@ impl Tui {
                 Constraint::Ratio(1, 3),
                 Constraint::Ratio(1, 3),
             ];
-            let header = Row::new(vec!["Rank", "Word", "Chord"]).style(Style::new().bold());
+            let header = TableRow::new(["Rank", "Word", "Chord"]).style(Style::new().bold());
             let block = Block::bordered();
-            let table = Table::new(
-                self.rows
-                    .iter()
-                    .map(|row| Row::new(row.iter().map(String::as_str))),
-                widths,
-            )
-            .block(block)
-            .header(header)
-            .row_highlight_style(Style::new().reversed());
+            let table = Table::new(&self.rows, widths)
+                .block(block)
+                .header(header)
+                .row_highlight_style(Style::new().reversed());
             frame.render_stateful_widget(table, layout[1], &mut self.table_state);
         })?;
 
@@ -162,12 +157,9 @@ impl Tui {
                     .rank
                     .as_ref()
                     .map_or(String::new(), |rank| rank.to_string());
-                let chord = entry
-                    .chord
-                    .as_ref()
-                    .map_or(String::default(), |chord| chord.to_string());
+                let chord = entry.chord.clone();
 
-                Some([rank, word, chord])
+                Some(Row { rank, word, chord })
             })
             .collect();
     }
@@ -186,5 +178,17 @@ impl Tui {
             .selected()
             .map_or(Some(0), |row| Some(row + 1));
         self.table_state.select(row);
+    }
+}
+
+struct Row {
+    rank: String,
+    word: String,
+    chord: Chord,
+}
+
+impl<'a> From<&'a Row> for TableRow<'a> {
+    fn from(row: &'a Row) -> Self {
+        TableRow::new([row.rank.as_str(), row.word.as_str(), row.chord.as_str()])
     }
 }
