@@ -1,6 +1,6 @@
 use std::{fs::read_to_string, io::Result, num::NonZeroUsize, ops::Deref, path::Path};
 
-use ordermap::OrderMap;
+use indexmap::IndexMap;
 
 use crate::chords::{Chord, Chords};
 
@@ -10,13 +10,13 @@ pub struct Entry {
     pub chord: Option<Chord>,
 }
 
-pub struct Words(OrderMap<String, Entry>);
+pub struct Words(IndexMap<String, Entry>);
 
 impl Words {
     pub fn read_from_file_and_chords(path: impl AsRef<Path>, chords: &Chords) -> Result<Self> {
         let words = read_to_string(path)?;
 
-        let mut entries: OrderMap<_, _> = words
+        let mut entries: IndexMap<_, _> = words
             .split('\n')
             .enumerate()
             .map(|(i, word)| {
@@ -39,7 +39,7 @@ impl Words {
 }
 
 impl Deref for Words {
-    type Target = OrderMap<String, Entry>;
+    type Target = IndexMap<String, Entry>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
