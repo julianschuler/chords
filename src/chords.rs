@@ -37,6 +37,14 @@ impl Chord {
     pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
+
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
+
+    pub fn is_empty(&mut self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 impl FromStr for Chord {
@@ -87,6 +95,14 @@ impl Chords {
 
     pub fn iter(&self) -> IntoIter<Chord, String> {
         self.0.clone().into_iter()
+    }
+
+    pub fn remove(&mut self, chord: &Chord) -> Option<String> {
+        self.0.remove(chord)
+    }
+
+    pub fn insert(&mut self, chord: Chord, word: String) -> Option<String> {
+        self.0.insert(chord, word)
     }
 }
 

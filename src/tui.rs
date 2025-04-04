@@ -17,7 +17,10 @@ use ratatui::{
     Terminal,
 };
 
-use crate::{chords::Chord, words::Words};
+use crate::{
+    chords::{Chord, Chords},
+    words::Words,
+};
 
 pub struct Tui {
     terminal: Terminal<CrosstermBackend<Stdout>>,
@@ -57,7 +60,7 @@ impl Tui {
         Ok(())
     }
 
-    pub fn run_event_loop(&mut self) -> Result<()> {
+    pub fn run_event_loop(&mut self, chords: &mut Chords) -> Result<()> {
         self.update_rows();
 
         loop {
@@ -65,7 +68,7 @@ impl Tui {
 
             let event = read()?;
             if let Event::Key(key) = event {
-                if self.handle_key(key) {
+                if self.handle_key(key, chords) {
                     break;
                 }
             }
@@ -99,14 +102,16 @@ impl Tui {
             frame.render_stateful_widget(table, layout[1], &mut self.table_state);
         })?;
 
-        let x: u16 = self.search.len().try_into().unwrap_or(u16::MAX - 1);
-        self.terminal.set_cursor_position((x + 1, 1))?;
-        self.terminal.show_cursor()?;
+        if self.table_state.selected().is_none() {
+            let x: u16 = self.search.len().try_into().unwrap_or(u16::MAX - 1);
+            self.terminal.set_cursor_position((x + 1, 1))?;
+            self.terminal.show_cursor()?;
+        }
 
         Ok(())
     }
 
-    fn handle_key(&mut self, key: KeyEvent) -> bool {
+    fn handle_key(&mut self, key: KeyEvent, chords: &mut Chords) -> bool {
         if key.kind != KeyEventKind::Press {
             return false;
         }
@@ -127,16 +132,50 @@ impl Tui {
                         _ => {}
                     }
                 } else {
-                    self.search.push(char);
-                    self.update_rows();
+                    match self.get_current_row() {
+                        Some(row) => {
+                            let chord = &mut row.chord;
+                            chords.remove(chord);
+
+                            if chord.insert(char) {
+                                let chord = chord.clone();
+                                let word = row.word.clone();
+
+                                chords.insert(chord.clone(), word.clone());
+                                self.words.update_chord(word, chord);
+                                self.update_rows();
+                            } else if !chord.is_empty() {
+                                chords.insert(chord.clone(), row.word.clone());
+                            }
+                        }
+                        None => {
+                            self.search.push(char);
+                            self.update_rows();
+                        }
+                    }
                 }
             }
             KeyCode::Backspace => {
-                self.search.pop();
+                match self.get_current_row() {
+                    Some(row) => {
+                        chords.remove(&row.chord);
+                        row.chord.clear();
+
+                        let word = row.word.clone();
+                        let chord = row.chord.clone();
+
+                        self.words.update_chord(word, chord);
+                    }
+                    None => {
+                        self.search.pop();
+                    }
+                }
                 self.update_rows();
             }
+            KeyCode::Esc => self.unselect_row(),
             KeyCode::Up => self.select_previous_row(),
             KeyCode::Down => self.select_next_row(),
+            KeyCode::Tab => self.select_next_row(),
             _ => {}
         }
 
@@ -164,6 +203,10 @@ impl Tui {
             .collect();
     }
 
+    fn unselect_row(&mut self) {
+        self.table_state.select(None);
+    }
+
     fn select_previous_row(&mut self) {
         let row = self
             .table_state
@@ -178,6 +221,12 @@ impl Tui {
             .selected()
             .map_or(Some(0), |row| Some(row + 1));
         self.table_state.select(row);
+    }
+
+    fn get_current_row(&mut self) -> Option<&mut Row> {
+        self.table_state
+            .selected()
+            .and_then(|index| self.rows.get_mut(index))
     }
 }
 

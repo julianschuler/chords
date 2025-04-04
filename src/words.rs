@@ -40,4 +40,8 @@ impl Words {
     pub fn iter(&self) -> Iter<String, Entry> {
         self.0.iter()
     }
+
+    pub fn update_chord(&mut self, word: String, chord: Chord) {
+        self.0.entry(word).or_default().chord = chord;
+    }
 }
