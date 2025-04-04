@@ -41,6 +41,12 @@ impl Words {
         self.0.iter()
     }
 
+    pub fn clear_chord(&mut self, word: &String) {
+        if let Some(entry) = self.0.get_mut(word) {
+            entry.chord.clear()
+        }
+    }
+
     pub fn update_chord(&mut self, word: String, chord: Chord) {
         self.0.entry(word).or_default().chord = chord;
     }

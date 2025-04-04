@@ -104,6 +104,10 @@ impl Chords {
     pub fn insert(&mut self, chord: Chord, word: String) -> Option<String> {
         self.0.insert(chord, word)
     }
+
+    pub fn get_word(&mut self, chord: &Chord) -> Option<&String> {
+        self.0.get(chord)
+    }
 }
 
 #[cfg(test)]

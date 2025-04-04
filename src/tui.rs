@@ -26,6 +26,7 @@ pub struct Tui {
     terminal: Terminal<CrosstermBackend<Stdout>>,
     words: Words,
     rows: Vec<Row>,
+    error: String,
     search: String,
     table_state: TableState,
 }
@@ -44,6 +45,7 @@ impl Tui {
             terminal,
             words,
             rows: Vec::new(),
+            error: String::new(),
             search: String::new(),
             table_state: TableState::new(),
         })
@@ -82,9 +84,13 @@ impl Tui {
             let layout =
                 Layout::vertical([Constraint::Length(3), Constraint::Min(0)]).split(frame.area());
 
-            let text = Text::from(self.search.as_str());
-            let block =
-                Block::bordered().title(Span::from("Search chords").style(Style::new().bold()));
+            let text = if !self.error.is_empty() {
+                Span::from(self.error.as_str()).bold().red()
+            } else {
+                Span::from(self.search.as_str())
+            };
+            let block = Block::bordered().title(Span::from("Search chords").bold());
+
             let paragraph = Paragraph::new(text).block(block);
             frame.render_widget(paragraph, layout[0]);
 
@@ -93,7 +99,7 @@ impl Tui {
                 Constraint::Ratio(1, 3),
                 Constraint::Ratio(1, 3),
             ];
-            let header = TableRow::new(["Rank", "Word", "Chord"]).style(Style::new().bold());
+            let header = TableRow::new(["Rank", "Word", "Chord"]).bold();
             let block = Block::bordered();
             let table = Table::new(&self.rows, widths)
                 .block(block)
@@ -134,18 +140,30 @@ impl Tui {
                 } else {
                     match self.get_current_row() {
                         Some(row) => {
+                            let word = row.word.clone();
                             let chord = &mut row.chord;
-                            chords.remove(chord);
+
+                            let chord_is_unique = self.error.is_empty();
+                            if chord_is_unique {
+                                // TODO: How to ensure that chord is only deleted if it is unique
+                                chords.remove(chord);
+                            }
 
                             if chord.insert(char) {
-                                let chord = chord.clone();
-                                let word = row.word.clone();
+                                if let Some(conflicting_word) = chords.get_word(chord) {
+                                    self.words.clear_chord(&word);
+                                    self.error = format!(
+                                        "'{word}' has the same chord as '{conflicting_word}'",
+                                    );
+                                } else {
+                                    let chord = chord.clone();
 
-                                chords.insert(chord.clone(), word.clone());
-                                self.words.update_chord(word, chord);
-                                self.update_rows();
+                                    chords.insert(chord.clone(), word.clone());
+                                    self.words.update_chord(word, chord);
+                                    self.error.clear();
+                                }
                             } else if !chord.is_empty() {
-                                chords.insert(chord.clone(), row.word.clone());
+                                chords.insert(chord.clone(), word);
                             }
                         }
                         None => {
@@ -161,10 +179,9 @@ impl Tui {
                         chords.remove(&row.chord);
                         row.chord.clear();
 
-                        let word = row.word.clone();
-                        let chord = row.chord.clone();
-
-                        self.words.update_chord(word, chord);
+                        let word = &row.word.clone();
+                        self.words.clear_chord(word);
+                        self.error.clear();
                     }
                     None => {
                         self.search.pop();
@@ -204,10 +221,14 @@ impl Tui {
     }
 
     fn unselect_row(&mut self) {
+        self.clear_chord_if_conflicting();
+
         self.table_state.select(None);
     }
 
     fn select_previous_row(&mut self) {
+        self.clear_chord_if_conflicting();
+
         let row = self
             .table_state
             .selected()
@@ -216,11 +237,20 @@ impl Tui {
     }
 
     fn select_next_row(&mut self) {
+        self.clear_chord_if_conflicting();
+
         let row = self
             .table_state
             .selected()
             .map_or(Some(0), |row| Some(row + 1));
         self.table_state.select(row);
+    }
+
+    fn clear_chord_if_conflicting(&mut self) {
+        if !self.error.is_empty() {
+            self.update_rows();
+            self.error.clear();
+        }
     }
 
     fn get_current_row(&mut self) -> Option<&mut Row> {
