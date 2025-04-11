@@ -44,4 +44,8 @@ impl Words {
     pub fn update_chord(&mut self, word: String, chord: Chord) {
         self.0.entry(word).or_default().chord = chord;
     }
+
+    pub fn get_chord(&self, word: &String) -> Option<&Chord> {
+        self.0.get(word).map(|entry| &entry.chord)
+    }
 }

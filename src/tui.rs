@@ -12,7 +12,7 @@ use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Layout},
     style::{Style, Stylize},
-    text::{Span, Text},
+    text::Span,
     widgets::{Block, Paragraph, Row as TableRow, Table, TableState},
     Terminal,
 };
@@ -64,7 +64,7 @@ impl Tui {
         self.update_rows();
 
         loop {
-            self.draw()?;
+            self.draw(chords)?;
 
             let event = read()?;
             if let Event::Key(key) = event {
@@ -74,15 +74,22 @@ impl Tui {
             }
         }
 
+        self.commit_changes(chords);
+
         Ok(())
     }
 
-    pub fn draw(&mut self) -> Result<()> {
+    pub fn draw(&mut self, chords: &Chords) -> Result<()> {
+        let error_message = self.error_message(chords);
+
         self.terminal.draw(|frame| {
             let layout =
                 Layout::vertical([Constraint::Length(3), Constraint::Min(0)]).split(frame.area());
 
-            let text = Text::from(self.search.as_str());
+            let text = match error_message {
+                Some(error) => Span::from(error).bold().red(),
+                None => Span::from(self.search.as_str()),
+            };
             let block =
                 Block::bordered().title(Span::from("Search chords").style(Style::new().bold()));
             let paragraph = Paragraph::new(text).block(block);
@@ -93,7 +100,7 @@ impl Tui {
                 Constraint::Ratio(1, 3),
                 Constraint::Ratio(1, 3),
             ];
-            let header = TableRow::new(["Rank", "Word", "Chord"]).style(Style::new().bold());
+            let header = TableRow::new(["Rank", "Word", "Chord"]).bold();
             let block = Block::bordered();
             let table = Table::new(&self.rows, widths)
                 .block(block)
@@ -109,6 +116,21 @@ impl Tui {
         }
 
         Ok(())
+    }
+
+    fn error_message(&mut self, chords: &Chords) -> Option<String> {
+        if let Some(row) = self.current_row_mut() {
+            let word = &row.word;
+
+            if let Some(stored_word) = chords.get_word(&row.chord) {
+                if stored_word != word {
+                    let error = format!("'{word}' has the same chord as '{stored_word}'",);
+                    return Some(error);
+                }
+            }
+        }
+
+        None
     }
 
     fn handle_key(&mut self, key: KeyEvent, chords: &mut Chords) -> bool {
@@ -132,21 +154,9 @@ impl Tui {
                         _ => {}
                     }
                 } else {
-                    match self.get_current_row() {
+                    match self.current_row_mut() {
                         Some(row) => {
-                            let chord = &mut row.chord;
-                            chords.remove(chord);
-
-                            if chord.insert(char) {
-                                let chord = chord.clone();
-                                let word = row.word.clone();
-
-                                chords.insert(chord.clone(), word.clone());
-                                self.words.update_chord(word, chord);
-                                self.update_rows();
-                            } else if !chord.is_empty() {
-                                chords.insert(chord.clone(), row.word.clone());
-                            }
+                            row.chord.insert(char);
                         }
                         None => {
                             self.search.push(char);
@@ -155,31 +165,45 @@ impl Tui {
                     }
                 }
             }
-            KeyCode::Backspace => {
-                match self.get_current_row() {
-                    Some(row) => {
-                        chords.remove(&row.chord);
-                        row.chord.clear();
-
-                        let word = row.word.clone();
-                        let chord = row.chord.clone();
-
-                        self.words.update_chord(word, chord);
-                    }
-                    None => {
-                        self.search.pop();
-                    }
+            KeyCode::Backspace => match self.current_row_mut() {
+                Some(row) => {
+                    row.chord.clear();
                 }
-                self.update_rows();
-            }
-            KeyCode::Esc => self.unselect_row(),
-            KeyCode::Up => self.select_previous_row(),
-            KeyCode::Down => self.select_next_row(),
-            KeyCode::Tab => self.select_next_row(),
+                None => {
+                    self.search.pop();
+                    self.update_rows();
+                }
+            },
+            KeyCode::Esc => self.unselect_row(chords),
+            KeyCode::Up => self.select_previous_row(chords),
+            KeyCode::Down => self.select_next_row(chords),
+            KeyCode::Tab => self.select_next_row(chords),
             _ => {}
         }
 
         false
+    }
+
+    fn current_row(&self) -> Option<&Row> {
+        self.table_state
+            .selected()
+            .and_then(|index| self.rows.get(index))
+    }
+
+    fn current_row_mut(&mut self) -> Option<&mut Row> {
+        self.table_state
+            .selected()
+            .and_then(|index| self.rows.get_mut(index))
+    }
+
+    fn reset_current_row(&mut self) {
+        if let Some(row) = self
+            .table_state
+            .selected()
+            .and_then(|index| self.rows.get_mut(index))
+        {
+            row.chord = self.words.get_chord(&row.word).cloned().unwrap_or_default();
+        }
     }
 
     fn update_rows(&mut self) {
@@ -203,11 +227,15 @@ impl Tui {
             .collect();
     }
 
-    fn unselect_row(&mut self) {
+    fn unselect_row(&mut self, chords: &mut Chords) {
+        self.commit_changes(chords);
+
         self.table_state.select(None);
     }
 
-    fn select_previous_row(&mut self) {
+    fn select_previous_row(&mut self, chords: &mut Chords) {
+        self.commit_changes(chords);
+
         let row = self
             .table_state
             .selected()
@@ -215,7 +243,9 @@ impl Tui {
         self.table_state.select(row);
     }
 
-    fn select_next_row(&mut self) {
+    fn select_next_row(&mut self, chords: &mut Chords) {
+        self.commit_changes(chords);
+
         let row = self
             .table_state
             .selected()
@@ -223,10 +253,26 @@ impl Tui {
         self.table_state.select(row);
     }
 
-    fn get_current_row(&mut self) -> Option<&mut Row> {
-        self.table_state
-            .selected()
-            .and_then(|index| self.rows.get_mut(index))
+    fn commit_changes(&mut self, chords: &mut Chords) {
+        if let Some(row) = self.current_row() {
+            let word = row.word.clone();
+            let chord = row.chord.clone();
+
+            if chords.get_word(&chord).is_none() {
+                if let Some(old_chord) = self.words.get_chord(&word) {
+                    if !old_chord.is_empty() {
+                        chords.remove(old_chord);
+                    }
+                }
+
+                self.words.update_chord(word.clone(), chord.clone());
+                if !chord.is_empty() {
+                    chords.insert(chord, word);
+                }
+            } else {
+                self.reset_current_row();
+            }
+        }
     }
 }
 

@@ -42,7 +42,7 @@ impl Chord {
         self.0.clear();
     }
 
-    pub fn is_empty(&mut self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 }
@@ -103,6 +103,10 @@ impl Chords {
 
     pub fn insert(&mut self, chord: Chord, word: String) -> Option<String> {
         self.0.insert(chord, word)
+    }
+
+    pub fn get_word(&self, chord: &Chord) -> Option<&String> {
+        self.0.get(chord)
     }
 }
 
