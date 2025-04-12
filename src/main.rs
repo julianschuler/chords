@@ -18,12 +18,16 @@ struct Args {
     /// Path to a list of common words sorted by frequeny in descending order
     #[arg(short, long)]
     words: PathBuf,
+    /// Path to the file to export the combos to for use with QMK
+    #[arg(short, long)]
+    export: PathBuf,
 }
 
 fn main() -> Result<()> {
     let args = Args::parse();
 
     let mut chords = Chords::read_from_file(&args.chords)?;
+    chords.export(&args.export)?;
     let words = Words::read_from_file_and_chords(args.words, &chords)?;
     let mut tui = Tui::new(words)?;
 
@@ -32,6 +36,7 @@ fn main() -> Result<()> {
     }
 
     chords.write_to_file(args.chords)?;
+    chords.export(args.export)?;
     tui.finish()?;
 
     Ok(())

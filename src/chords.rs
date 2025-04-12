@@ -38,6 +38,10 @@ impl Chord {
         self.0.as_str()
     }
 
+    pub fn keys(&self) -> impl Iterator<Item = char> + use<'_> {
+        self.0.chars().filter(|&char| char != '+')
+    }
+
     pub fn clear(&mut self) {
         self.0.clear();
     }
@@ -88,6 +92,22 @@ impl Chords {
             .0
             .iter()
             .map(|(chord, word)| format!("{chord}: {word}\n", chord = chord.as_str()))
+            .collect();
+
+        File::create(path)?.write_all(lines.concat().as_bytes())
+    }
+
+    pub fn export(&self, path: impl AsRef<Path>) -> IoResult<()> {
+        const PREFIX: &str = "DE_";
+
+        let lines: Vec<_> = self
+            .0
+            .iter()
+            .map(|(chord, word)| {
+                let keys: Vec<_> = chord.keys().map(|key| format!("{PREFIX}{key}")).collect();
+                let keys = keys.join(", ");
+                format!("SUBS(_{word}, \"{word}\", {keys})\n")
+            })
             .collect();
 
         File::create(path)?.write_all(lines.concat().as_bytes())
