@@ -1,6 +1,6 @@
 use std::{fs::read_to_string, io::Result, num::NonZeroUsize, path::Path};
 
-use indexmap::{map::Iter, IndexMap};
+use indexmap::{IndexMap, map::Iter};
 
 use crate::chords::{Chord, Chords};
 

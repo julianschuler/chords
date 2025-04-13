@@ -1,6 +1,6 @@
 use std::{
     char::ParseCharError,
-    collections::{btree_map::IntoIter, BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, btree_map::IntoIter},
     fs::{read_to_string, write},
     io::Result as IoResult,
     path::Path,
@@ -38,7 +38,7 @@ impl Chord {
         self.0.as_str()
     }
 
-    pub fn keys(&self) -> impl Iterator<Item = char> + use<'_> {
+    pub fn keys(&self) -> impl Iterator<Item = char> {
         self.0.chars().filter(|&char| char != '+')
     }
 

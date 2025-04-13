@@ -1,20 +1,20 @@
-use std::io::{stdout, Result, Stdout};
+use std::io::{Result, Stdout, stdout};
 
 use crossterm::{
     event::{
-        read, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, KeyboardEnhancementFlags,
-        PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
+        Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, KeyboardEnhancementFlags,
+        PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags, read,
     },
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{
+    Terminal,
     backend::CrosstermBackend,
     layout::{Constraint, Layout},
     style::{Style, Stylize},
     text::Span,
     widgets::{Block, Paragraph, Row as TableRow, Table, TableState},
-    Terminal,
 };
 
 use crate::{
