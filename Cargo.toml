@@ -4,9 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-clap = { version = "4.5.35", features = ["derive"] }
-crossterm = "0.28.1"
-indexmap = "2.8.0"
+clap = { version = "4.5.36", features = ["derive"] }
+crossterm = "0.29.0"
+indexmap = "2.9.0"
 ratatui = "0.29.0"
 
 [workspace.lints.clippy]
