@@ -180,6 +180,7 @@ impl Tui {
             KeyCode::Up => self.select_previous_row(chords)?,
             KeyCode::Down => self.select_next_row(chords)?,
             KeyCode::Tab => self.select_next_row(chords)?,
+            KeyCode::BackTab => self.select_previous_row(chords)?,
             _ => {}
         }
 
