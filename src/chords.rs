@@ -1,8 +1,8 @@
 use std::{
     char::ParseCharError,
     collections::{btree_map::IntoIter, BTreeMap, BTreeSet},
-    fs::{read_to_string, File},
-    io::{Result as IoResult, Write},
+    fs::{read_to_string, write},
+    io::Result as IoResult,
     path::Path,
     str::FromStr,
 };
@@ -125,7 +125,7 @@ impl<'a> Chords<'a> {
             .map(|(chord, word)| format!("{chord}: {word}\n", chord = chord.as_str()))
             .collect();
 
-        File::create(self.chords_path)?.write_all(lines.concat().as_bytes())
+        write(self.chords_path, lines.concat().as_bytes())
     }
 
     fn export(&self) -> IoResult<()> {
@@ -141,7 +141,7 @@ impl<'a> Chords<'a> {
             })
             .collect();
 
-        File::create(self.export_path)?.write_all(lines.concat().as_bytes())
+        write(self.export_path, lines.concat().as_bytes())
     }
 }
 
