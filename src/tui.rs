@@ -2,8 +2,8 @@ use std::io::{stdout, Result, Stdout};
 
 use crossterm::{
     event::{
-        read, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
-        KeyModifiers,
+        read, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, KeyboardEnhancementFlags,
+        PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
     },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -35,7 +35,11 @@ impl Tui {
         enable_raw_mode()?;
 
         let mut stdout = stdout();
-        execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+        execute!(
+            stdout,
+            EnterAlternateScreen,
+            PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES)
+        )?;
 
         let backend = CrosstermBackend::new(stdout);
         let terminal = Terminal::new(backend)?;
@@ -56,7 +60,7 @@ impl Tui {
         execute!(
             self.terminal.backend_mut(),
             LeaveAlternateScreen,
-            DisableMouseCapture
+            PopKeyboardEnhancementFlags
         )?;
 
         Ok(())
@@ -138,33 +142,31 @@ impl Tui {
             return Ok(false);
         }
 
-        match key.code {
-            KeyCode::Char(char) => {
-                if key.modifiers.contains(KeyModifiers::CONTROL) {
-                    match key.code {
-                        KeyCode::Char('c') => {
-                            // ctrl-c
-                            return Ok(true);
-                        }
-                        KeyCode::Char('h') => {
-                            // ctrl-backspace
-                            self.search.clear();
-                            self.update_rows();
-                        }
-                        _ => {}
-                    }
-                } else {
-                    match self.current_row_mut() {
-                        Some(row) => {
-                            row.chord.insert(char);
-                        }
-                        None => {
-                            self.search.push(char);
-                            self.update_rows();
-                        }
-                    }
+        if key.modifiers == KeyModifiers::CONTROL {
+            match key.code {
+                KeyCode::Char('c') => {
+                    return Ok(true);
                 }
+                KeyCode::Backspace => {
+                    self.search.clear();
+                    self.update_rows();
+                }
+                _ => {}
             }
+
+            return Ok(false);
+        }
+
+        match key.code {
+            KeyCode::Char(char) => match self.current_row_mut() {
+                Some(row) => {
+                    row.chord.insert(char);
+                }
+                None => {
+                    self.search.push(char);
+                    self.update_rows();
+                }
+            },
             KeyCode::Backspace => match self.current_row_mut() {
                 Some(row) => {
                     row.chord.clear();
