@@ -49,7 +49,9 @@ impl Tui {
         })
     }
 
-    pub fn finish(mut self) -> Result<()> {
+    pub fn finish(mut self, chords: &mut Chords) -> Result<()> {
+        self.commit_changes(chords)?;
+
         disable_raw_mode()?;
         execute!(
             self.terminal.backend_mut(),
@@ -73,8 +75,6 @@ impl Tui {
                 }
             }
         }
-
-        self.commit_changes(chords)?;
 
         Ok(())
     }

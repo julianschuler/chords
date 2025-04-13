@@ -35,8 +35,7 @@ fn main() -> Result<()> {
         eprintln!("Error when running event loop: {error}");
     }
 
-    chords.save_and_export()?;
-    tui.finish()?;
+    tui.finish(&mut chords)?;
 
     Ok(())
 }
