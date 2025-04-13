@@ -135,9 +135,19 @@ impl<'a> Chords<'a> {
             .chords
             .iter()
             .map(|(chord, word)| {
+                let identifier: String = word
+                    .chars()
+                    .map(|char| {
+                        if char.is_ascii_alphabetic() {
+                            char.to_ascii_lowercase()
+                        } else {
+                            '_'
+                        }
+                    })
+                    .collect();
                 let keys: Vec<_> = chord.keys().map(|key| format!("{PREFIX}{key}")).collect();
                 let keys = keys.join(", ");
-                format!("SUBS(_{word}, \"{word}\", {keys})\n")
+                format!("SUBS(_{identifier}, \"{word} \", {keys})\n")
             })
             .collect();
 
