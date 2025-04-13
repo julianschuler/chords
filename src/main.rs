@@ -26,8 +26,8 @@ struct Args {
 fn main() -> Result<()> {
     let args = Args::parse();
 
-    let mut chords = Chords::read_from_file(&args.chords)?;
-    chords.export(&args.export)?;
+    let mut chords = Chords::new(&args.chords, &args.export)?;
+    chords.save_and_export()?;
     let words = Words::read_from_file_and_chords(args.words, &chords)?;
     let mut tui = Tui::new(words)?;
 
@@ -35,8 +35,7 @@ fn main() -> Result<()> {
         eprintln!("Error when running event loop: {error}");
     }
 
-    chords.write_to_file(args.chords)?;
-    chords.export(args.export)?;
+    chords.save_and_export()?;
     tui.finish()?;
 
     Ok(())

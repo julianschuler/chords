@@ -68,13 +68,13 @@ impl Tui {
 
             let event = read()?;
             if let Event::Key(key) = event {
-                if self.handle_key(key, chords) {
+                if self.handle_key(key, chords)? {
                     break;
                 }
             }
         }
 
-        self.commit_changes(chords);
+        self.commit_changes(chords)?;
 
         Ok(())
     }
@@ -133,9 +133,9 @@ impl Tui {
         None
     }
 
-    fn handle_key(&mut self, key: KeyEvent, chords: &mut Chords) -> bool {
+    fn handle_key(&mut self, key: KeyEvent, chords: &mut Chords) -> Result<bool> {
         if key.kind != KeyEventKind::Press {
-            return false;
+            return Ok(false);
         }
 
         match key.code {
@@ -144,7 +144,7 @@ impl Tui {
                     match key.code {
                         KeyCode::Char('c') => {
                             // ctrl-c
-                            return true;
+                            return Ok(true);
                         }
                         KeyCode::Char('h') => {
                             // ctrl-backspace
@@ -174,14 +174,14 @@ impl Tui {
                     self.update_rows();
                 }
             },
-            KeyCode::Esc => self.unselect_row(chords),
-            KeyCode::Up => self.select_previous_row(chords),
-            KeyCode::Down => self.select_next_row(chords),
-            KeyCode::Tab => self.select_next_row(chords),
+            KeyCode::Esc => self.unselect_row(chords)?,
+            KeyCode::Up => self.select_previous_row(chords)?,
+            KeyCode::Down => self.select_next_row(chords)?,
+            KeyCode::Tab => self.select_next_row(chords)?,
             _ => {}
         }
 
-        false
+        Ok(false)
     }
 
     fn current_row(&self) -> Option<&Row> {
@@ -227,33 +227,39 @@ impl Tui {
             .collect();
     }
 
-    fn unselect_row(&mut self, chords: &mut Chords) {
-        self.commit_changes(chords);
+    fn unselect_row(&mut self, chords: &mut Chords) -> Result<()> {
+        self.commit_changes(chords)?;
 
         self.table_state.select(None);
+
+        Ok(())
     }
 
-    fn select_previous_row(&mut self, chords: &mut Chords) {
-        self.commit_changes(chords);
+    fn select_previous_row(&mut self, chords: &mut Chords) -> Result<()> {
+        self.commit_changes(chords)?;
 
         let row = self
             .table_state
             .selected()
             .and_then(|row| if row > 0 { Some(row - 1) } else { None });
         self.table_state.select(row);
+
+        Ok(())
     }
 
-    fn select_next_row(&mut self, chords: &mut Chords) {
-        self.commit_changes(chords);
+    fn select_next_row(&mut self, chords: &mut Chords) -> Result<()> {
+        self.commit_changes(chords)?;
 
         let row = self
             .table_state
             .selected()
             .map_or(Some(0), |row| Some(row + 1));
         self.table_state.select(row);
+
+        Ok(())
     }
 
-    fn commit_changes(&mut self, chords: &mut Chords) {
+    fn commit_changes(&mut self, chords: &mut Chords) -> Result<()> {
         if let Some(row) = self.current_row() {
             let word = row.word.clone();
             let chord = row.chord.clone();
@@ -269,10 +275,13 @@ impl Tui {
                 if !chord.is_empty() {
                     chords.insert(chord, word);
                 }
+                chords.save_and_export()?;
             } else {
                 self.reset_current_row();
             }
         }
+
+        Ok(())
     }
 }
 

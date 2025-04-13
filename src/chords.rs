@@ -66,11 +66,15 @@ impl FromStr for Chord {
     }
 }
 
-pub struct Chords(BTreeMap<Chord, String>);
+pub struct Chords<'a> {
+    chords: BTreeMap<Chord, String>,
+    chords_path: &'a Path,
+    export_path: &'a Path,
+}
 
-impl Chords {
-    pub fn read_from_file(path: impl AsRef<Path>) -> IoResult<Self> {
-        let lines = read_to_string(path)?;
+impl<'a> Chords<'a> {
+    pub fn new(chords_path: &'a Path, export_path: &'a Path) -> IoResult<Self> {
+        let lines = read_to_string(chords_path)?;
 
         let chords = lines
             .split('\n')
@@ -84,24 +88,51 @@ impl Chords {
             })
             .collect();
 
-        Ok(Self(chords))
+        Ok(Self {
+            chords,
+            chords_path,
+            export_path,
+        })
     }
 
-    pub fn write_to_file(&self, path: impl AsRef<Path>) -> IoResult<()> {
+    pub fn iter(&self) -> IntoIter<Chord, String> {
+        self.chords.clone().into_iter()
+    }
+
+    pub fn remove(&mut self, chord: &Chord) -> Option<String> {
+        self.chords.remove(chord)
+    }
+
+    pub fn insert(&mut self, chord: Chord, word: String) -> Option<String> {
+        self.chords.insert(chord, word)
+    }
+
+    pub fn get_word(&self, chord: &Chord) -> Option<&String> {
+        self.chords.get(chord)
+    }
+
+    pub fn save_and_export(&self) -> IoResult<()> {
+        self.save()?;
+        self.export()?;
+
+        Ok(())
+    }
+
+    fn save(&self) -> IoResult<()> {
         let lines: Vec<_> = self
-            .0
+            .chords
             .iter()
             .map(|(chord, word)| format!("{chord}: {word}\n", chord = chord.as_str()))
             .collect();
 
-        File::create(path)?.write_all(lines.concat().as_bytes())
+        File::create(self.chords_path)?.write_all(lines.concat().as_bytes())
     }
 
-    pub fn export(&self, path: impl AsRef<Path>) -> IoResult<()> {
+    fn export(&self) -> IoResult<()> {
         const PREFIX: &str = "DE_";
 
         let lines: Vec<_> = self
-            .0
+            .chords
             .iter()
             .map(|(chord, word)| {
                 let keys: Vec<_> = chord.keys().map(|key| format!("{PREFIX}{key}")).collect();
@@ -110,23 +141,7 @@ impl Chords {
             })
             .collect();
 
-        File::create(path)?.write_all(lines.concat().as_bytes())
-    }
-
-    pub fn iter(&self) -> IntoIter<Chord, String> {
-        self.0.clone().into_iter()
-    }
-
-    pub fn remove(&mut self, chord: &Chord) -> Option<String> {
-        self.0.remove(chord)
-    }
-
-    pub fn insert(&mut self, chord: Chord, word: String) -> Option<String> {
-        self.0.insert(chord, word)
-    }
-
-    pub fn get_word(&self, chord: &Chord) -> Option<&String> {
-        self.0.get(chord)
+        File::create(self.export_path)?.write_all(lines.concat().as_bytes())
     }
 }
 
