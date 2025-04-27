@@ -45,7 +45,11 @@ impl Words {
         self.0.entry(word).or_default().chord = chord;
     }
 
-    pub fn get_chord(&self, word: &String) -> Option<&Chord> {
+    pub fn get_chord(&self, word: &str) -> Option<&Chord> {
         self.0.get(word).map(|entry| &entry.chord)
+    }
+
+    pub fn get_rank(&self, word: &str) -> Option<NonZeroUsize> {
+        self.0.get(word).and_then(|entry| entry.rank)
     }
 }

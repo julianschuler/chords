@@ -128,7 +128,11 @@ impl Tui {
 
             if let Some(stored_word) = chords.get_word(&row.chord) {
                 if stored_word != word {
-                    let error = format!("'{word}' has the same chord as '{stored_word}'",);
+                    let mut error = format!("'{word}' has the same chord as '{stored_word}'",);
+                    if let Some(rank) = self.words.get_rank(stored_word) {
+                        error = format!("{error} (rank {rank})");
+                    }
+
                     return Some(error);
                 }
             }
