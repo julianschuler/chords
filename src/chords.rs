@@ -13,7 +13,7 @@ pub struct Chord(String);
 impl Chord {
     pub fn insert(&mut self, key: char) -> bool {
         let key = key.to_ascii_uppercase();
-        if !key.is_ascii_uppercase() || self.0.contains(key) {
+        if !(key.is_ascii_uppercase() || ['.', ','].contains(&key)) || self.0.contains(key) {
             return false;
         }
 
@@ -145,7 +145,14 @@ impl<'a> Chords<'a> {
                         }
                     })
                     .collect();
-                let keys: Vec<_> = chord.keys().map(|key| format!("{PREFIX}{key}")).collect();
+                let keys: Vec<_> = chord
+                    .keys()
+                    .map(|key| match key {
+                        '.' => format!("{PREFIX}DOT"),
+                        ',' => format!("{PREFIX}COMM"),
+                        key => format!("{PREFIX}{key}"),
+                    })
+                    .collect();
                 let keys = keys.join(", ");
                 format!("SUBS(_{identifier}, \"{word} \", {keys})\n")
             })
